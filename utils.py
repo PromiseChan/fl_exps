@@ -37,8 +37,8 @@ def tell_history(hist,file_name : str, infos = None,path : str = "",head=None):
     infos["accuracy"] = accuracy
     infos["losses_cent"] = losses_cent
     infos["losses_dis"] = losses_dis
-
-    with open(path+file_name+".npy","wb") as f:
+    chain_epochs = args.chain_epochs
+    with open(path+file_name+"_"+str(chain_epochs)+"avg"+".npy","wb") as f:
         np.save(f,infos)
 
 # borrowed from Pytorch quickstart example
@@ -83,6 +83,7 @@ def test(net, testloader, device: str):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
+    loss = loss / len(testloader)
     return loss, accuracy
 
 def total_sum_params(iter):
@@ -130,6 +131,9 @@ def prune_threshold(params):
 
     return params
 
+# 计算每一层的稀疏度
+# 该函数的作用是计算神经网络每一层参数的稀疏性，返回一个列表，
+# 其中每个元素表示对应层参数的非零元素比例
 def layer_sparsity(params):
     num_zeros = list(map(np.count_nonzero,params))
     total_per_layer = list(map(np.size,params))

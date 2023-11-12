@@ -2,7 +2,6 @@ import flwr as fl
 import torch
 from dataset_utils import get_cifar_10, do_fl_partitioning,get_cifar_100
 from utils import set_params,test,tell_history,pile_str,get_tensor_parameters
-import time
 import multiprocess as mp
 mp.set_start_method('spawn',force=True)
 from args import args
@@ -33,12 +32,22 @@ elif(args.model == "qresnet8"):
 
 def fit_config(server_round):
     """Return a configuration with static batch size and (local) epochs."""
-    config = {
-        "epochs": args.cl_epochs,  # number of local epochs
-        "batch_size": args.cl_bs,
-        "cl_lr": args.cl_lr,
-        "cl_momentum": args.cl_momentum,
-    }
+    print("全局round: " + str(server_round))
+    print("chain epoch: " + str(args.chain_epochs))
+    if int(server_round) <= args.chain_epochs:
+        config = {
+            "epochs": 1,
+            "batch_size": args.cl_bs,
+            "cl_lr": args.cl_lr,
+            "cl_momentum": args.cl_momentum,
+        }
+    else:
+        config = {
+            "epochs": args.cl_epochs,  # number of local epochs
+            "batch_size": args.cl_bs,
+            "cl_lr": args.cl_lr,
+            "cl_momentum": args.cl_momentum,
+        }
     return config
 
 def get_evaluate_fn( testset,dataset_info) :
@@ -47,7 +56,7 @@ def get_evaluate_fn( testset,dataset_info) :
         """Use the entire CIFAR-10 test set for evaluation."""
 
         # determine device
-        if(args.only_cpu_eval):
+        if(args.only_cpu):
             device = torch.device("cpu")
         else:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -88,7 +97,7 @@ def start_client(model, dataset_info, saddr,cid,fed_dir,features_maps,only_cpu):
 # Start simulation (a _default server_ will be created)
 if __name__ == "__main__":
 
-    saddr = "0.0.0.0:8080"
+    saddr = "127.0.0.1:8080"
     processes = []
     pool_size = args.num_clients  # number of dataset partions (= number of total clients)
     file_name = args.model

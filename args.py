@@ -25,7 +25,8 @@ parser.add_argument("--cl_lr", type=float, default=0.01,help="client's learning 
 parser.add_argument("--cl_momentum", type=float, default=0.9,help="client's momentum")
 parser.add_argument("--cl_epochs", type=int, default=1,help="number of local epochs in each client")
 parser.add_argument("--cl_bs", type=int, default=16,help="client's batch size")
-parser.add_argument("--only_cpu", action="store_true",help="to force the use of only cpu in the client")
+parser.add_argument("--chain_epochs", type=int, default=10,help="client's chain epochs")
+# parser.add_argument("--only_cpu", action="store_true",help="to force the use of only cpu in the client")
 
 ## Prune
 parser.add_argument("--prune", action="store_true",help="flag to activate pruning")

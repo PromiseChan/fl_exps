@@ -65,10 +65,11 @@ class FlowerClient(fl.client.NumPyClient):
         sparsity = 0
         params = get_params(self.net)
 
-        if(args.prune):
+        # 非结构化剪枝
+        if args.prune:
             params = prune_threshold(params)
-
-        if(args.layer_sparsity):
+        # 统计剪枝率
+        if args.layer_sparsity:
             sparsity = layer_sparsity(params)
             
         return params, len(trainloader.dataset), {"sparsity":sparsity}
@@ -79,7 +80,7 @@ class FlowerClient(fl.client.NumPyClient):
         # Load data for this client and get trainloader
         num_workers = 2
         valloader = get_dataloader(
-            self.fed_dir, self.cid, is_train=False, batch_size=50, 
+            self.fed_dir, self.cid, is_train=False, batch_size=50,
             workers=num_workers,transform = dict_tranforms[self.dataset])
 
         # Send model to device
