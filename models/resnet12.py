@@ -60,6 +60,17 @@ class ResNet12(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
+        # 拆分成全局层和私有层，resnet私有层固定为 linear
+        self.local_layer_names = ['linear.weight', 'linear.bias']
+        self.all_layer_names = []
+        for name, _ in self.named_parameters():
+            self.all_layer_names.append(name)
+        self.all_layer_names = list(set(self.all_layer_names))
+        self.global_layer_names = list(set(self.all_layer_names) - set(self.local_layer_names))
+        self.global_layer_names.sort()
+
+
+
     def forward(self, x):
         out = x
         for i in range(len(self.layers)):

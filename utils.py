@@ -14,16 +14,46 @@ def pile_str(line,item):
 
 def get_tensor_parameters(model):
     from flwr.common.parameter import ndarrays_to_parameters
-    return ndarrays_to_parameters([val.cpu().numpy() for _, val in model.state_dict().items()])
+    parameters = []
+    model.global_layer_names.sort()
+    for i in range(len(model.global_layer_names)):
+        name = model.global_layer_names[i]
+        parameters.append(model.state_dict()[name].cpu().numpy())
+    return ndarrays_to_parameters(parameters)
 
+# 本地训练完成后，获取最新的参数，发送给服务器
 def get_params(model: torch.nn.ModuleList) -> List[np.ndarray]:
     """Get model weights as a list of NumPy ndarrays."""
-    return [val.cpu().numpy() for _, val in model.state_dict().items()]
+    parameters = []
+    model.global_layer_names.sort()
+    for i in range(len(model.global_layer_names)):
+        name = model.global_layer_names[i]
+        parameters.append(model.state_dict()[name].cpu().numpy())
+    return parameters
 
+# 接收来自服务器的参数
 def set_params(model: torch.nn.ModuleList, params: List[np.ndarray]):
     """Set model weights from a list of NumPy ndarrays."""
-    params_dict = zip(model.state_dict().keys(), params)
-    state_dict = OrderedDict({k: torch.from_numpy(np.copy(v)) for k, v in params_dict})
+    model.global_layer_names.sort()
+    params_dict = zip(model.global_layer_names, params)
+    linear_layer = nn.Linear(10 * args.feature_maps, 10)
+
+
+    parameter = []
+    for name, param in linear_layer.state_dict().items():
+        parameter.append(param.cpu().numpy())
+
+    local_dict = zip(model.local_layer_names,parameter)
+
+    tmp_map = {}
+    for k, v in local_dict:
+        tmp_map[k] = torch.from_numpy(np.copy(v))
+    for k, v in params_dict:
+        tmp_map[k] = torch.from_numpy(np.copy(v))
+
+
+    state_dict = OrderedDict(tmp_map)
+
     model.load_state_dict(state_dict, strict=True)
 
 
@@ -48,7 +78,31 @@ def train(net, trainloader, epochs, device: str,
     """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=momentum)
+    optimizer_local = torch.optim.SGD(net.parameters(), lr=lr, momentum=momentum)
     net.train()
+
+    # todo fedrecon 恢复 私有层参数，只训练 local_layer层
+    for name,val in net.state_dict().items():
+        if name not in net.local_layer_names:
+            val.requires_grad = False
+
+    for _ in range(3):
+        for images, labels in trainloader:
+            images, labels = images.to(device), labels.to(device)
+            optimizer_local.zero_grad()
+            loss = criterion(net(images), labels)
+            loss.backward()
+            optimizer_local.step()
+
+
+
+
+
+
+    # 训练全部参数
+    for name, val in net.state_dict().items():
+        val.requires_grad = True
+    # 开始训练
     for _ in range(epochs):
         for images, labels in trainloader:
             images, labels = images.to(device), labels.to(device)
