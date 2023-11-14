@@ -94,11 +94,6 @@ def train(net, trainloader, epochs, device: str,
             loss.backward()
             optimizer_local.step()
 
-
-
-
-
-
     # 训练全部参数
     for name, val in net.state_dict().items():
         val.requires_grad = True

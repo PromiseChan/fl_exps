@@ -70,6 +70,26 @@ def get_evaluate_fn( testset,dataset_info) :
         model.to(device)
 
         testloader = torch.utils.data.DataLoader(testset, batch_size=50)
+
+        # todo fedrecon 恢复 私有层参数，只训练 local_layer层
+        optimizer_local = torch.optim.SGD(model.parameters(), lr=args.cl_lr, momentum=args.cl_momentum)
+        criterion = torch.nn.CrossEntropyLoss()
+
+        for name, val in model.state_dict().items():
+            if name not in model.local_layer_names:
+                val.requires_grad = False
+
+        for _ in range(3):
+            for images, labels in testloader:
+                images, labels = images.to(device), labels.to(device)
+                optimizer_local.zero_grad()
+                loss = criterion(model(images), labels)
+                loss.backward()
+                optimizer_local.step()
+        # 训练全部参数
+        for name, val in model.state_dict().items():
+            val.requires_grad = True
+
         loss, accuracy = test(model, testloader, device=device)
 
         # return statistics

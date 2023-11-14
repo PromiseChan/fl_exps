@@ -86,6 +86,37 @@ class FlowerClient(fl.client.NumPyClient):
         # Send model to device
         self.net.to(self.device)
 
+        # todo fedrecon 恢复 私有层参数，只训练 local_layer层
+        lr = args.cl_lr
+        momentum = args.cl_momentum
+        optimizer_local = torch.optim.SGD(self.net.parameters(), lr=lr, momentum=momentum)
+        criterion = torch.nn.CrossEntropyLoss()
+
+        trainloader = get_dataloader(
+            self.fed_dir,
+            self.cid,
+            is_train=True,
+            batch_size=args.cl_bs,
+            workers=num_workers,
+            transform = dict_tranforms[self.dataset]
+        )
+
+        for name, val in self.net.state_dict().items():
+            if name not in self.net.local_layer_names:
+                val.requires_grad = False
+
+        for _ in range(3):
+            for images, labels in trainloader:
+                images, labels = images.to(self.device), labels.to(self.device)
+                optimizer_local.zero_grad()
+                loss = criterion(self.net(images), labels)
+                loss.backward()
+                optimizer_local.step()
+
+        # 训练全部参数
+        for name, val in self.net.state_dict().items():
+            val.requires_grad = True
+
         # Evaluate
         loss, accuracy = test(self.net, valloader, device=self.device)
 
