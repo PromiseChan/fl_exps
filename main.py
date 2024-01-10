@@ -1,6 +1,10 @@
+import random
+from pathlib import Path
+
 import flwr as fl
 import torch
-from dataset_utils import get_cifar_10, do_fl_partitioning,get_cifar_100
+
+from dataset_utils import get_cifar_10, do_fl_partitioning,get_cifar_100, get_dataloader,dict_tranforms
 from utils import set_params,test,tell_history,pile_str,get_tensor_parameters
 import multiprocess as mp
 mp.set_start_method('spawn',force=True)
@@ -36,10 +40,19 @@ def fit_config(server_round):
     print("chain epoch: " + str(args.chain_epochs))
     if int(server_round) <= args.chain_epochs:
         config = {
+            "epochs": 3,
+            "batch_size": args.cl_bs,
+            "cl_lr": args.cl_lr,
+            "cl_momentum": args.cl_momentum,
+            "fedrecon_epoch": 1
+        }
+    elif int(server_round) <= args.chain_epochs + 13:
+        config = {
             "epochs": 1,
             "batch_size": args.cl_bs,
             "cl_lr": args.cl_lr,
             "cl_momentum": args.cl_momentum,
+            "fedrecon_epoch": 0
         }
     else:
         config = {
@@ -47,6 +60,7 @@ def fit_config(server_round):
             "batch_size": args.cl_bs,
             "cl_lr": args.cl_lr,
             "cl_momentum": args.cl_momentum,
+            "fedrecon_epoch": 0
         }
     return config
 
@@ -66,8 +80,24 @@ def get_evaluate_fn( testset,dataset_info) :
             model = BC(model)
 
         #model = Net()
+        train_path = Path('./demos/CIFAR10') / "cifar-10-batches-py"/"training.pt"
+
         set_params(model, parameters)
         model.to(device)
+
+        fed_dir = do_fl_partitioning(
+            train_path, pool_size=args.num_clients, alpha=1, num_classes=10, val_ratio=args.val_ratio
+        )
+
+        cid = str(random.randint(0, 4))
+        trainloader = get_dataloader(
+            fed_dir,
+            cid,
+            is_train=True,
+            batch_size=args.cl_bs,
+            workers=2,
+            transform = dict_tranforms['cifar10']
+        )
 
         testloader = torch.utils.data.DataLoader(testset, batch_size=50)
 
@@ -79,8 +109,8 @@ def get_evaluate_fn( testset,dataset_info) :
             if name not in model.local_layer_names:
                 val.requires_grad = False
 
-        for _ in range(3):
-            for images, labels in testloader:
+        for _ in range(1):
+            for images, labels in trainloader:
                 images, labels = images.to(device), labels.to(device)
                 optimizer_local.zero_grad()
                 loss = criterion(model(images), labels)

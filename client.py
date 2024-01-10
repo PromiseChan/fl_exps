@@ -57,10 +57,10 @@ class FlowerClient(fl.client.NumPyClient):
 
         # Send model to device
         self.net.to(self.device)
-
+        fedrecon_epoch = config["fedrecon_epoch"]
         # Train
         train(self.net, trainloader, epochs=config["epochs"], 
-        device=self.device,lr=lr,momentum=momentum )
+        device=self.device,lr=lr,momentum=momentum,fedrecon_epoch=fedrecon_epoch )
 
         sparsity = 0
         params = get_params(self.net)
@@ -105,7 +105,7 @@ class FlowerClient(fl.client.NumPyClient):
             if name not in self.net.local_layer_names:
                 val.requires_grad = False
 
-        for _ in range(3):
+        for _ in range(1):
             for images, labels in trainloader:
                 images, labels = images.to(self.device), labels.to(self.device)
                 optimizer_local.zero_grad()

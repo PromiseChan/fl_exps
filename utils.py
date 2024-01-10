@@ -73,7 +73,7 @@ def tell_history(hist,file_name : str, infos = None,path : str = "",head=None):
 
 # borrowed from Pytorch quickstart example
 def train(net, trainloader, epochs, device: str,
-          lr : float = 0.01, momentum : float = 0.9):
+          lr : float = 0.01, momentum : float = 0.9, fedrecon_epoch : int = 1):
 
     """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
@@ -86,7 +86,7 @@ def train(net, trainloader, epochs, device: str,
         if name not in net.local_layer_names:
             val.requires_grad = False
 
-    for _ in range(3):
+    for _ in range(fedrecon_epoch):
         for images, labels in trainloader:
             images, labels = images.to(device), labels.to(device)
             optimizer_local.zero_grad()
